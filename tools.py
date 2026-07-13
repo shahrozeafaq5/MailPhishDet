@@ -1,5 +1,6 @@
-import re
-from urllib.parse import urlparse
+from datetime import datetime
+from pathlib import Path
+
 
 
 def analyze_email(email_text: str) -> dict:
@@ -74,3 +75,26 @@ if __name__ == "__main__":
 
     result = analyze_email(sample_email)
     print(result)
+
+
+def save_phishing_report(email_text: str, analysis: str) -> str:
+    reports_folder = Path("phishing_reports")
+    reports_folder.mkdir(exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_path = reports_folder / f"phishing_report_{timestamp}.md"
+
+    report = f"""# Phishing Email Analysis
+
+## Original Email
+
+{email_text}
+
+## Analysis
+
+{analysis}
+"""
+
+    file_path.write_text(report, encoding="utf-8")
+
+    return str(file_path)

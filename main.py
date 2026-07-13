@@ -3,7 +3,7 @@ import os
 
 from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
-from tools import analyze_email
+from tools import analyze_email, save_phishing_report
 
 # 1. Load API token
 load_dotenv()
@@ -82,7 +82,7 @@ Give:
 
     return ask_gemma(messages)
 
-    
+
 def main() -> None:
     print("\n=== Phishing Email Analyzer ===")
     print("Paste the email below.")
@@ -109,6 +109,13 @@ def main() -> None:
 
         print("\n=== Analysis Result ===\n")
         print(answer)
+
+        file_path = save_phishing_report(
+            email_text=email_text,
+            analysis=answer,
+        )
+
+        print(f"\nReport saved at: {file_path}")
 
     except Exception as error:
         print(f"\nError: {error}")
