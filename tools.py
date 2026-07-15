@@ -2,7 +2,7 @@ from datetime import datetime
 from pathlib import Path
 import re
 from urllib.parse import urlparse
-
+from bs4 import BeautifulSoup
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
@@ -16,6 +16,56 @@ from reportlab.platypus import (
 import re
 from urllib.parse import urlparse
 from email.utils import parseaddr
+
+def analyze_html_links(html_body: str) -> dict:
+    links = []
+    misleading_links = []
+
+    if not html_body:
+        return {
+            "html_links": links,
+            "misleading_links": misleading_links,
+        }
+
+    soup = BeautifulSoup(html_body, "html.parser")
+
+    for anchor in soup.find_all("a", href=True):
+        actual_url = anchor.get("href", "").strip()
+        visible_text = anchor.get_text(" ", strip=True)
+
+        link_data = {
+            "visible_text": visible_text,
+            "actual_url": actual_url,
+        }
+
+        links.append(link_data)
+
+        # Only compare when visible text itself looks like a URL
+        if visible_text.startswith(("http://", "https://")):
+            visible_domain = urlparse(visible_text).netloc.lower()
+            actual_domain = urlparse(actual_url).netloc.lower()
+
+            if (
+                visible_domain
+                and actual_domain
+                and visible_domain != actual_domain
+            ):
+                misleading_links.append(
+                    {
+                        "visible_text": visible_text,
+                        "actual_url": actual_url,
+                        "reason": (
+                            f"Displayed domain '{visible_domain}' "
+                            f"does not match destination domain "
+                            f"'{actual_domain}'."
+                        ),
+                    }
+                )
+
+    return {
+        "html_links": links,
+        "misleading_links": misleading_links,
+    }
 
 
 def extract_domain(email_address: str) -> str:
@@ -45,7 +95,7 @@ def analyze_email(email_data: dict, email_text: str) -> dict:
 
     email_lower = email_text.lower()
 
-    urls = re.findall(r"https?://[^\s\"'<>]+", email_text)
+    urls = re.findall(r'https?://[^\s"\'<>]+', email_text)
 
     suspicious_phrases = [
         phrase
@@ -113,12 +163,22 @@ def analyze_email(email_data: dict, email_text: str) -> dict:
     if "dmarc=fail" in authentication_results:
         authentication_issues.append("DMARC authentication failed.")
 
+    attachment_issues = analyze_attachments(email_data)
+    html_link_result = analyze_html_links(
+    email_data.get("html_body", "")
+)
+
+    html_links = html_link_result["html_links"]
+    misleading_links = html_link_result["misleading_links"]
+
     score = 0
     score += len(suspicious_phrases) * 10
     score += len(suspicious_urls) * 25
     score += len(header_issues) * 20
     score += len(authentication_issues) * 25
+    score += len(attachment_issues) * 30
     score += len(urls) * 3
+    score += len(misleading_links) * 35
 
     score = min(score, 100)
 
@@ -137,6 +197,10 @@ def analyze_email(email_data: dict, email_text: str) -> dict:
         "suspicious_phrases": suspicious_phrases,
         "header_issues": header_issues,
         "authentication_issues": authentication_issues,
+        "attachment_issues": attachment_issues,
+        "attachments": email_data.get("attachments", []),
+        "html_links": html_links,
+        "misleading_links": misleading_links,
         "domains": {
             "from_domain": from_domain,
             "reply_to_domain": reply_to_domain,
@@ -144,7 +208,38 @@ def analyze_email(email_data: dict, email_text: str) -> dict:
         },
     }
 
+def analyze_attachments(email_data: dict) -> list[str]:
+    risky_extensions = {
+        ".exe",
+        ".scr",
+        ".bat",
+        ".cmd",
+        ".js",
+        ".vbs",
+        ".ps1",
+        ".msi",
+        ".jar",
+        ".iso",
+        ".img",
+        ".lnk",
+        ".zip",
+        ".rar",
+        ".7z",
+    }
 
+    issues = []
+
+    for attachment in email_data.get("attachments", []):
+        filename = attachment.get("filename", "").lower()
+
+        for extension in risky_extensions:
+            if filename.endswith(extension):
+                issues.append(
+                    f"Potentially risky attachment: {filename}"
+                )
+                break
+
+    return issues
 
 if __name__ == "__main__":
     sample_email = """

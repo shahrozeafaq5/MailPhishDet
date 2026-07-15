@@ -118,6 +118,8 @@ Rules:
   sender mismatch, Reply-To mismatch, credential requests,
   payment requests, impersonation, failed authentication,
   dangerous attachments, or urgent external actions.
+-Consider risky attachment types such as executables, scripts,
+archives, disk images, and shortcut files.
 """,
         },
         {
@@ -185,7 +187,7 @@ def main() -> None:
 
         print("\nEmail parsed successfully.")
 
-        # Step 2: Convert parsed dictionary to readable text
+
         email_text = build_email_text(email_data)
 
         print("\n=== Parsed Email ===\n")
